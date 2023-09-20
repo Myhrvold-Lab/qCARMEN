@@ -1,3 +1,1 @@
-## Workflow to assemble and sort COVID sequencing reads
-
-### Long form description here
+## Workflow to design primers and crRNAs for qCARMEN panels.
