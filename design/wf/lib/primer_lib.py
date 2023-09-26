@@ -38,13 +38,18 @@ def design_candidates(
     # Get shared points across targets
     shared_points = get_shared_points(target_gbs, all_seqs, exon_map)
 
-    # print("Shared points:", shared_points, primer_mat, primer_locs, exon_map, target_gbs)
+    print("Shared points:", shared_points, primer_mat, primer_locs, exon_map, target_gbs)
 
     # Search for primers, this returns indices of primer_locs
     # Convert target_indices to a list of 0s and 1s
-    primer_search_res = search_primer_sets(primer_mat, primer_locs, [1 if ind in target_indices else 0 for ind in range(len(all_seqs))], shared_points)
+    primer_search_res = search_primer_sets(
+        primer_mat, 
+        primer_locs, 
+        [1 if ind in target_indices else 0 for ind in range(len(all_seqs))], 
+        shared_points
+    )
 
-    # print("Primer Search Res:", primer_search_res)
+    print("Primer Search Res:", primer_search_res)
 
     # What exons or exon-junctions are the guides in?
     # Create a dictionary with exon/exon junction as keys and (guide, predicted_activity) as values
@@ -57,7 +62,8 @@ def design_candidates(
         else:
             guide_dict[exon] = [guide]
 
-    # print("Guides:", guides)
+    print("Guides:", guides)
+    print("Guide Dict:", guide_dict)
 
     # Prune primer sets that don't have a corresponding crRNA in that exon, some function here
     valid_crRNAs = []
@@ -65,7 +71,7 @@ def design_candidates(
     for crRNA_loc in primer_search_res:
         if crRNA_loc[0] in guide_dict: valid_crRNAs.append(crRNA_loc)
 
-    # print("Valid crRNAs:", valid_crRNAs)
+    print("Valid crRNAs:", valid_crRNAs)
 
     # Flatten the valid_crRNAs list so that we have groupings of (crRNA, forward_primers, reverse_primers)
     combos_flat = []
@@ -106,7 +112,7 @@ def design_candidates(
     # things like GC content, Tm, etc.
     tested_point_pairs = {}
 
-    # print("combos flat:", combos_flat)
+    print("combos flat:", combos_flat)
 
     # Store results of all combos
     combo_res = []
@@ -223,7 +229,7 @@ def design_candidates(
 
     non_target_seqs = [seq for ind, seq in enumerate(all_seqs) if ind not in target_indices]
 
-    # print("Combo Res:", combo_res)
+    print("Combo Res:", combo_res)
 
     # Choose the primer set with the highest score, then find the crRNA with the highest score and use that
     for res in combo_res:
@@ -448,6 +454,9 @@ def score_primer_set(
     repeat_scores = repeat_optimizer(primer_set)
     gc_scores = gc_optimizer(primer_set)
 
+    """
+    Check this... incrementing?
+    """
     weighted_scores = + 0.2 * base_scores + 0.2 * repeat_scores + 0.6 * gc_scores
 
     # Return primers and weighted score
@@ -603,17 +612,29 @@ def search_primer_sets(
         comp_point = restriction_point if is_exon else (restriction_point[0] + 1 if left else restriction_point[1] - 1)
 
         flanking_inds = []
+        # for ind, loc in enumerate(loc_candidates):
+        #     loc_is_exon = isinstance(loc, int)
+        #     # Exon and left is True
+        #     if (loc_is_exon) and left:
+        #         if loc < comp_point: flanking_inds.append(ind)
+        #     elif (loc_is_exon) and not left:
+        #         if loc > comp_point: flanking_inds.append(ind)
+        #     elif (not loc_is_exon) and left:
+        #         if loc[1] < comp_point: flanking_inds.append(ind)
+        #     elif (not loc_is_exon) and not left:
+        #         if loc[0] > comp_point: flanking_inds.append(ind)
+
         for ind, loc in enumerate(loc_candidates):
             loc_is_exon = isinstance(loc, int)
             # Exon and left is True
             if (loc_is_exon) and left:
-                if loc < comp_point: flanking_inds.append(ind)
+                if loc <= comp_point: flanking_inds.append(ind)
             elif (loc_is_exon) and not left:
-                if loc > comp_point: flanking_inds.append(ind)
+                if loc >= comp_point: flanking_inds.append(ind)
             elif (not loc_is_exon) and left:
-                if loc[1] < comp_point: flanking_inds.append(ind)
+                if loc[1] <= comp_point: flanking_inds.append(ind)
             elif (not loc_is_exon) and not left:
-                if loc[0] > comp_point: flanking_inds.append(ind)
+                if loc[0] >= comp_point: flanking_inds.append(ind)
         
         return flanking_inds
     

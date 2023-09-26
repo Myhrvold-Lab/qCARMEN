@@ -1,14 +1,11 @@
 """
 Design qCARMEN primers and crRNAs.
 """
-import os
-import csv
 from datetime import datetime
 from pathlib import Path
 from typing import Tuple
 
 from latch.resources.launch_plan import LaunchPlan
-from latch.resources.tasks import small_task
 from latch.resources.workflow import workflow
 from latch.types.directory import LatchOutputDir
 
@@ -47,11 +44,10 @@ metadata = LatchMetadata(
             #     )
             # ],
         ),
-        # "output_directory": LatchParameter(
-        #     display_name="Output Directory",
-        #     description="Where to place the result file.",
-        #     batch_table_column=True,  # Show this parameter in batched mode.
-        # ),
+        "organism": LatchParameter(
+            display_name="Organism",
+            description="Scientific name for organism of interest (e.g. Homo sapiens).",
+        ),
         # "ncbi_key": LatchParameter(
         #     display_name="NCBI API Key",
         #     description="API Key for RefSeq gene search.",
@@ -77,12 +73,14 @@ def design(
     # Genes/isoforms in .csv
     target_list: LatchFile,
     # output_directory: LatchOutputDir,
+    # Organism name
+    organism: str = "Homo sapiens",
     # API key for NCBI
     # ncbi_key: LatchFile,
     # Optional: Genbank files for targets
-    genbank_dir: Optional[LatchDir],
+    genbank_dir: Optional[LatchDir] = None,
     # Optional: ADAPT files for targets
-    adapt_dir_provided: Optional[LatchDir],
+    adapt_dir_provided: Optional[LatchDir] = None,
     # Enforce specificity for ADAPT search
     # specificity: bool = False,
 ) -> Tuple[LatchFile, LatchFile]:
@@ -105,14 +103,10 @@ def design(
         # target_file = LatchFile("latch:///test_data/short_list.csv"),
     )
 
-    gb_dir, fasta_dir = gene_search_task(target_obj=target_obj, genbank_dir=genbank_dir, dt_string=dt_string)
-
+    gb_dir, fasta_dir = gene_search_task(target_obj=target_obj, genbank_dir=genbank_dir, organism=organism, dt_string=dt_string)
     adapt_dir = adapt_task(target_obj=target_obj, fastas=fasta_dir, adapt_dir=adapt_dir_provided, specificity=False, dt_string=dt_string)
-
     primer_obj = primer_task(target_obj=target_obj, gb_dir=gb_dir, adapt_dir=adapt_dir, timeout=3600)
-
     mod_obj = mod_task(primer_obj=primer_obj, target_obj=target_obj, gb_dir=gb_dir)
-
     return write_task(target_obj=mod_obj, dt_string=dt_string)
 
 """

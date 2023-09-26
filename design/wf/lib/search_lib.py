@@ -8,7 +8,10 @@ import os
 from Bio import SeqIO
 
 # Gets genbank files associated with a given gene name
-def get_gbs(gene_name):
+def get_gbs(
+    gene_name,
+    organism,
+):
     print("Searching for", gene_name)
     # The base URL to call NIH nuccore API
     base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
@@ -19,7 +22,7 @@ def get_gbs(gene_name):
         + "&api_key=aee6f92caa65c57070b14801ba2b905ea108")
 
     # We add onto the base URL using the gene of interest
-    esearch_url += '&term=(' + gene_name + '[Gene Name] NOT PREDICTED [Title] AND srcdb_refseq[PROP]) AND "Homo sapiens"[porgn] AND srcdb_refseq[PROP] AND biomol_mrna[PROP]'
+    esearch_url += '&term=(' + gene_name + '[Gene Name] NOT PREDICTED [Title] AND srcdb_refseq[PROP]) AND "' + organism + '"[porgn] AND srcdb_refseq[PROP] AND biomol_mrna[PROP]'
 
     # Then, we call the API to get IDs for the transcripts
     response = requests.get(esearch_url)

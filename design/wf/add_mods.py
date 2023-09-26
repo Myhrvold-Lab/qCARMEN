@@ -29,7 +29,7 @@ def mod_task(
     target_path = Path(target_obj).resolve()
     with open(target_path, "rb") as f: targets = pickle.load(f)
 
-    # print(targets)
+    print("Primers:", primers)
 
     # Get genbank files
     gb_path = Path(gb_dir).resolve()
@@ -38,11 +38,25 @@ def mod_task(
     for gene_key in targets.keys():
         all_seqs = read_gbs(str(gb_path) + "/" + gene_key)
         for target_group in targets[gene_key]["target_groups"]:
-            target_group["fw_primers"] = get_modded(primers[target_group["identifier"]][1], all_seqs, 1)
-            target_group["rev_primers"] = get_modded(primers[target_group["identifier"]][2], all_seqs, -1)
-            target_group["crRNA"] = primers[target_group["identifier"]][0]
+            if primers[target_group["identifier"]] is None:
+                target_group["fw_primers"] = []
+                target_group["rev_primers"] = []
 
-    print(targets)
+                # Add crRNA to target_group as well
+                target_group["crRNA"] = ""
+            else:
+                # Get unmodified forward and reverse primers
+                fw_primers = primers[target_group["identifier"]][1]
+                rev_primers = primers[target_group["identifier"]][2]
+
+                # If primers are present, we write to fw_primers and rev_primers in target_group
+                target_group["fw_primers"] = get_modded(fw_primers, all_seqs, 1)
+                target_group["rev_primers"] = get_modded(rev_primers, all_seqs, -1)
+
+                # Add crRNA to target_group as well
+                target_group["crRNA"] = primers[target_group["identifier"]][0]
+
+    print("Targets:", targets)
 
     # Pickle the design result
     targets_pickled = "/root/targets.pkl"

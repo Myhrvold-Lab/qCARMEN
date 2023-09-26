@@ -24,9 +24,6 @@ def write_task(
     with open("/root/final.csv", mode='w') as output_file:
         output_writer = csv.writer(output_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         
-        # Number of columns
-        num_columns = 4
-        
         # Header row
         output_writer.writerow([
             "Gene",
@@ -80,4 +77,4 @@ def write_task(
     
     # return LatchFile("/root/final.csv"), LatchFile("/root/primers_only.csv")
 
-    return LatchFile("/root/final.csv", "latch:///" + "qCARMEN/outputs/" + dt_string + "/crRNAs.csv"), LatchFile("/root/primers_only.csv", "latch:///" + "qCARMEN/outputs/" + dt_string + "primers_only.csv")
+    return LatchFile("/root/final.csv", "latch:///" + "qCARMEN/outputs/" + dt_string + "/results/crRNAs.csv"), LatchFile("/root/primers_only.csv", "latch:///" + "qCARMEN/outputs/" + dt_string + "/results/primers_only.csv")

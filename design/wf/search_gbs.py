@@ -18,6 +18,7 @@ def gene_search_task(
     target_obj: LatchFile,
     # ncbi_key: typing.Optional[str] = None,
     genbank_dir: typing.Optional[LatchDir] = None,
+    organism: typing.Optional[str] = "Homo sapiens",
     dt_string: typing.Optional[str] = None,
 ) -> Tuple[LatchDir, LatchDir]:
     """
@@ -45,7 +46,7 @@ def gene_search_task(
         gb_path = target[target_key]["gb_dir"]
         if gb_path is None:
             # Get genbank files
-            gbs = get_gbs(target_key)
+            gbs = get_gbs(target_key, organism)
             # Write these to fasta files
             SeqIO.write(gbs, fasta_dir + target_key + ".fasta", "fasta")
             # Save the genbank files
