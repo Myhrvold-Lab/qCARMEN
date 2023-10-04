@@ -1,1 +1,4 @@
-# Your workflow description here (useful if putting into version control system like git + GitHub or GitLab)
+# qCARMEN Analysis Pipeline
+
+Calculates pseudo concentration values for targets across wells in provided dataset. Workflow can be 
+run on Latch Bio.
