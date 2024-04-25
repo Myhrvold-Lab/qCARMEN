@@ -114,7 +114,7 @@ def eqs_log(log_params):
 
 def y_model(theta, x, t_max, steps):
     # Initial Cas13 concentration
-    E_0 = np.log10(np.power(10, theta[-2]) / 50)
+    E_0 = np.power(10, theta[-2]) / 50
     
     t_vec, z_t = simulation([0, 0, 0, E_0], 0, t_max, [1e-6, 1e-9], theta, eqs_log, t_eval=np.arange(0, t_max, t_max / steps) + t_max / steps)
     
