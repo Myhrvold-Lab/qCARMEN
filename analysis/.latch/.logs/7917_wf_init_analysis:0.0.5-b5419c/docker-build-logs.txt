@@ -1,0 +1,91 @@
+Step 1/9 : from 812206152185.dkr.ecr.us-west-2.amazonaws.com/latch-base:fe0b-main
+
+
+ ---> f23c37efcd53
+
+Step 2/9 : run pip install latch==2.27.4
+
+
+ ---> Using cache
+
+ ---> f2be47dcf99a
+
+Step 3/9 : run mkdir /opt/latch
+
+
+ ---> Using cache
+
+ ---> 7f374a5416fc
+
+Step 4/9 : COPY requirements.txt requirements.txt
+
+
+ ---> 1ad18f535700
+
+Step 5/9 : RUN pip install -r requirements.txt
+
+
+ ---> Running in 51a02d03ccc5
+
+Collecting scipy==1.7.3
+
+  Downloading scipy-1.7.3-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (39.8 MB)
+
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 39.8/39.8 MB 38.7 MB/s eta 0:00:00
+
+
+Collecting joblib==1.4.2
+
+  Downloading joblib-1.4.2-py3-none-any.whl (301 kB)
+
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 301.8/301.8 kB 14.7 MB/s eta 0:00:00
+
+
+Collecting nanoid==2.0.0
+
+  Downloading nanoid-2.0.0-py3-none-any.whl (5.8 kB)
+
+Requirement already satisfied: numpy<1.23.0,>=1.16.5 in /usr/local/lib/python3.9/site-packages (from scipy==1.7.3->-r requirements.txt (line 1)) (1.21.6)
+
+Installing collected packages: nanoid, scipy, joblib
+
+Successfully installed joblib-1.4.2 nanoid-2.0.0 scipy-1.7.3
+
+[91mWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+[0m
+[91m
+[notice] A new release of pip is available: 23.0.1 -> 24.0
+[notice] To update, run: pip install --upgrade pip
+[0m
+ ---> 99f55d507a85
+
+Step 6/9 : copy . /root/
+
+
+ ---> ab8a4a95068f
+
+Step 7/9 : arg tag
+
+
+ ---> Running in 70def926ff1d
+
+ ---> 62aa54b9df7c
+
+Step 8/9 : env FLYTE_INTERNAL_IMAGE $tag
+
+
+ ---> Running in 7cc6f8c7b729
+
+ ---> 50962f6ca47d
+
+Step 9/9 : workdir /root
+
+
+ ---> Running in 001b8d1ca674
+
+ ---> c6cd5772779d
+
+Successfully built c6cd5772779d
+
+Successfully tagged 812206152185.dkr.ecr.us-west-2.amazonaws.com/7917_wf_init_analysis:0.0.5-b5419c
+
