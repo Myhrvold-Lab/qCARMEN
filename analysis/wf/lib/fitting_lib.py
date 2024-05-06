@@ -6,7 +6,8 @@ from .model import y_model
 def multi_sample_model(
     params: list, 
     num_genes: int, 
-    num_samples: int
+    num_samples: int,
+    num_timesteps: int = 37,
 ) -> list:
     num_shared = 10
     shared_params = params[:num_shared]
@@ -23,7 +24,7 @@ def multi_sample_model(
 
     results = [r for r in 
         Parallel(return_as="generator", n_jobs=-1)(
-            delayed(lambda params: y_model(params, steps=37))(theta)
+            delayed(lambda params: y_model(params, steps=num_timesteps))(theta)
             for theta in job_items
         )
     ]
@@ -66,7 +67,8 @@ def multi_sample_constraints(
 def single_sample_model(
     fixed_params: list,
     variable_params: list, 
-    num_genes: int
+    num_genes: int,
+    num_timesteps: int = 37,
 ) -> list:
     job_items = []
     for i in range(num_genes):
@@ -77,7 +79,7 @@ def single_sample_model(
 
     results = []
     for theta in job_items:
-        results.append(y_model(theta, steps=37))
+        results.append(y_model(theta, steps=num_timesteps))
         
     return results
 
@@ -93,7 +95,8 @@ def multi_sample_error(
     num_genes: int, 
     num_samples: int
 ) -> float:
-    model_outputs = multi_sample_model(params, num_genes, num_samples)
+    num_timesteps = len(y_data[0][0])
+    model_outputs = multi_sample_model(params, num_genes, num_samples, num_timesteps=num_timesteps)
     error = 0
     for i in range(num_samples):
         for j in range(num_genes):
@@ -107,7 +110,8 @@ def single_sample_error(
     y_data: list, 
     num_genes: int
 ) -> float:
-    model_outputs = single_sample_model(fixed_params, params, num_genes)
+    num_timesteps = len(y_data[0])
+    model_outputs = single_sample_model(fixed_params, params, num_genes, num_timesteps=num_timesteps)
     error = 0
     for j in range(num_genes):
         error += np.sum((y_data[j] - model_outputs[j])**2)

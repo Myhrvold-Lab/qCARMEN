@@ -11,7 +11,7 @@ from .lib.data_processing import Biomark
 from .lib.fitting_lib import normalize_data, select_representative_samples
 from .lib.inference import fit_shared_params, fit_all_samples, get_mses, get_end_values
 
-@custom_task(cpu=64, memory=64)
+@custom_task(cpu=64, memory=32)
 def inference_task(
     # Raw data file from Biomark
     raw_data: LatchFile,

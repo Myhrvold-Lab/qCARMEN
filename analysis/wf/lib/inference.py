@@ -42,6 +42,7 @@ def fit_shared_params(
     param_res = []
     
     for iter_ind in range(num_iter):
+        print(f"Beginning shared fitting iteration {iter_ind + 1} of {num_iter}...")
         optimizer = OptimizerWithEarlyStopping(tol=tol, threshold = threshold)
         res_params, res_err = run_minimize_with_stopping(
             optimizer, 
@@ -80,7 +81,7 @@ def fit_individual_sample(
     param_res = []
     
     for iter_ind in range(num_iter):
-        optimizer = OptimizerWithEarlyStopping(tol=tol, threshold = threshold)
+        optimizer = OptimizerWithEarlyStopping(tol=tol, threshold=threshold)
         # Just for testing, switch back
         res_params, res_err = run_minimize_with_stopping(
             optimizer, 
@@ -101,6 +102,7 @@ def fit_all_samples(
     data: list,
     # Result from fit_shared_params
     shared_params: list,
+    num_iter: int = 1,
     tol: float = 0.5,
     threshold: float = 5,
 ) -> list:
@@ -112,12 +114,10 @@ def fit_all_samples(
     """
     assert len(data) > 0 and len(data[0]) > 0
     
-    num_timesteps = len(data[0][0])
-    
     results = [r for r in 
         tqdm(
             Parallel(return_as="generator", n_jobs=-1)(
-                delayed(fit_individual_sample)(sample_data, shared_params, tol=tol, threshold=threshold)
+                delayed(fit_individual_sample)(sample_data, shared_params, tol=tol, threshold=threshold, num_iter=num_iter)
                 for sample_data in data
             ),
             total=len(data)
@@ -142,6 +142,7 @@ def get_mses(
     # Infer from data
     num_samples = len(data)
     num_genes = len(data[0])
+    num_timesteps = len(data[0][0])
     
     theta_list = [
         [shared_params + [sample_params[-1], sample_params[gene]] 
@@ -153,7 +154,7 @@ def get_mses(
     results = [r for r in 
         tqdm(
             Parallel(return_as="generator", n_jobs=-1)(
-                delayed(lambda params: y_model(params, steps=37))(theta)
+                delayed(lambda params: y_model(params, steps=num_timesteps))(theta)
                 for theta in flat_theta_list
             ),
             total=len(flat_theta_list)
