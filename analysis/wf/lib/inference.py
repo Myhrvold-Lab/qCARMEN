@@ -25,24 +25,24 @@ def fit_shared_params(
     num_samples = len(data)
     num_genes = len(data[0])
     
-    # Shared params + DNA and DNA_excess for each gene in each sample
-    initial_params = np.concatenate([
-        np.random.rand(10), 
-        np.ones(num_genes * num_samples), 
-        2 * np.ones(num_samples)
-    ])
-    multi_bounds = [(-15, 15)] * (num_shared - 1) + \
-        [(-np.inf, 1)] + \
-        [(-np.inf, np.inf)] * (len(initial_params) - num_shared)
-
-    constraints = multi_sample_constraints(initial_params, num_genes, num_samples)
-    custom_err_func = lambda p: multi_sample_error(p, data, num_genes, num_samples)
-    
     # Collect parameters and errors
     param_res = []
     
     for iter_ind in range(num_iter):
         print(f"Beginning shared fitting iteration {iter_ind + 1} of {num_iter}...")
+        # Shared params + DNA and DNA_excess for each gene in each sample
+        initial_params = np.concatenate([
+            np.random.rand(10), 
+            np.ones(num_genes * num_samples), 
+            2 * np.ones(num_samples)
+        ])
+        multi_bounds = [(-15, 15)] * (num_shared - 1) + \
+            [(-np.inf, 1)] + \
+            [(-np.inf, np.inf)] * (num_genes * num_samples + num_samples)
+
+        constraints = multi_sample_constraints(initial_params, num_genes, num_samples)
+        custom_err_func = lambda p: multi_sample_error(p, data, num_genes, num_samples)
+
         optimizer = OptimizerWithEarlyStopping(tol=tol, threshold = threshold)
         res_params, res_err = run_minimize_with_stopping(
             optimizer, 
@@ -70,17 +70,17 @@ def fit_individual_sample(
     # Infer from data
     num_genes = len(data)
     
-    initial_params = np.concatenate([np.random.rand(num_genes), 2 * np.ones(1)])
-    # Generally unconstrained values for DNA and DNA_tot
-    bounds = [(-25, 25)] * len(initial_params)
-    
-    constraints = single_sample_constraints(initial_params)
-    custom_err_func = lambda p: single_sample_error(p, shared_params, data, num_genes)
-    
     # Collect parameters and errors
     param_res = []
     
     for iter_ind in range(num_iter):
+        initial_params = np.concatenate([np.random.rand(num_genes), 2 * np.ones(1)])
+        # Generally unconstrained values for DNA and DNA_tot
+        bounds = [(-25, 25)] * len(initial_params)
+        
+        constraints = single_sample_constraints(initial_params)
+        custom_err_func = lambda p: single_sample_error(p, shared_params, data, num_genes)
+
         optimizer = OptimizerWithEarlyStopping(tol=tol, threshold=threshold)
         # Just for testing, switch back
         res_params, res_err = run_minimize_with_stopping(
