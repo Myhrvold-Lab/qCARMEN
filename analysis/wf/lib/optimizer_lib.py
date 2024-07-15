@@ -108,5 +108,3 @@ def run_minimize_with_stopping(
         print("Function value at last parameters:", min_err.last_value)
 
         return min_err.last_params, min_err.last_value
-    
-    return np.array([]), -1
