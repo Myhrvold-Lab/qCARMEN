@@ -1,20 +1,68 @@
+from enum import Enum
+from typing import Optional
 import pandas as pd
 import numpy as np
 import csv
 from collections import defaultdict
 
 """
-For Cas13 data only. Currently only works with 192.24 chip data.
+Data object for processing Biomark raw files.
+
+Requires data for "Passive Reference ROX". Otherwise does not work.
 """
+class ChipType(Enum):
+    s192_a24 = "192.24"
+    s96_a96 = "96.96"
+
+def get_assay_groups(file_path: Optional[str], chip_type: ChipType) -> dict:
+    """
+    Processes assay grouping .csv file. 
+    """
+    # If file_path is None, we just assume we have no assay replicates
+    num_assays = int(chip_type.value.split(".")[1])
+    if file_path is None:
+        return {"0": list(range(1, num_assays + 1))}
+
+    groups = defaultdict(list)
+    with open(file_path, "r") as f:
+        reader = csv.reader(f)
+        for line in reader:
+            row_group = line[1]
+            row_ind = int(line[0])
+            groups[row_group].append(row_ind)
+
+    # Make sure that the total number of wells assigned to groups equals the number of assay wells
+    total_assigned = 0
+    for g in groups.items():
+        total_assigned += len(g[1])
+
+    assert total_assigned == num_assays, \
+        "Total number of wells in assay replicate file should equal total number of wells for specified chip type."
+
+    return groups
+
 class Biomark:
     # Instantiate class with file location
-    def __init__(self, file_location, probe_name="SNPtype-FAM"):
+    def __init__(
+        self, 
+        file_location: str, 
+        chip_type: ChipType,
+        probe_name: str = "SNPtype-FAM",
+    ):
         # Lists for raw data and header info
         rox_raw = []
         fam_raw = []
         rox_bkgd = []
         fam_bkgd = []
         headers = []
+
+        self.num_samples = int(chip_type.value.split(".")[0])
+        self.num_assays = int(chip_type.value.split(".")[1])
+
+        # 96.96 format has SXX format
+        self.sample_pad = 2 if self.num_samples == 96 else 3
+        # Always set to 2
+        self.assay_pad = 2
 
         # Open file
         with open(file_location) as csv_file:
@@ -35,6 +83,9 @@ class Biomark:
             curr_cat = None
             lines_processed = 0
 
+            # Number of lines to read per probe section
+            line_limit = self.num_assays * self.num_samples
+
             # Loop through CSV file
             for row in csv_reader:
                 if row and row[0] == "Cycle Number":
@@ -47,13 +98,13 @@ class Biomark:
                     lines_processed = 0
                     # After setting, move onto the next row
                     continue
-                if curr_cat != None and row and row[0] != "Chamber ID" and lines_processed < 4608:
+                if curr_cat != None and row and row[0] != "Chamber ID" and lines_processed < line_limit:
                     data_agg[curr_cat].append(row[:len(headers)])
                     # Increment number of lines processed and continue
                     lines_processed += 1
                     continue
                 # Reset if we finish a section
-                if curr_cat != None and lines_processed >= 4608:
+                if curr_cat != None and lines_processed >= line_limit:
                     curr_cat = None
                     lines_processed = 0
 
@@ -108,8 +159,8 @@ class Biomark:
     # Subtracts ROX background from ROX raw
     def get_rox(self, sample, assay):
         # Set sample and assay IDs
-        sample_id = "S" + str(sample).zfill(3)
-        assay_id = "A" + str(assay).zfill(2)
+        sample_id = "S" + str(sample).zfill(self.sample_pad)
+        assay_id = "A" + str(assay).zfill(self.assay_pad)
 
         # After setting IDs, get the normalized fam_rox values and returns only numerics
         rox_raw_vals = self.rox_raw[
@@ -127,8 +178,8 @@ class Biomark:
     # Subtracts ROX background from ROX raw
     def get_rox_raw(self, sample, assay):
         # Set sample and assay IDs
-        sample_id = "S" + str(sample).zfill(3)
-        assay_id = "A" + str(assay).zfill(2)
+        sample_id = "S" + str(sample).zfill(self.sample_pad)
+        assay_id = "A" + str(assay).zfill(self.assay_pad)
 
         # After setting IDs, get the normalized fam_rox values and returns only numerics
         rox_raw_vals = self.rox_raw[
@@ -141,8 +192,8 @@ class Biomark:
     # Subtracts ROX background from ROX raw
     def get_rox_bkgd(self, sample, assay):
         # Set sample and assay IDs
-        sample_id = "S" + str(sample).zfill(3)
-        assay_id = "A" + str(assay).zfill(2)
+        sample_id = "S" + str(sample).zfill(self.sample_pad)
+        assay_id = "A" + str(assay).zfill(self.assay_pad)
 
         rox_bkgd_vals = self.rox_bkgd[
             (self.rox_bkgd["Assay ID"] == assay_id) &
@@ -154,8 +205,8 @@ class Biomark:
     # Subtracts ROX background from ROX raw
     def get_fam(self, sample, assay):
         # Set sample and assay IDs
-        sample_id = "S" + str(sample).zfill(3)
-        assay_id = "A" + str(assay).zfill(2)
+        sample_id = "S" + str(sample).zfill(self.sample_pad)
+        assay_id = "A" + str(assay).zfill(self.assay_pad)
 
         # After setting IDs, get the normalized fam_rox values and returns only numerics
         fam_raw_vals = self.fam_raw[
@@ -173,8 +224,8 @@ class Biomark:
     # Subtracts ROX background from ROX raw
     def get_fam_raw(self, sample, assay):
         # Set sample and assay IDs
-        sample_id = "S" + str(sample).zfill(3)
-        assay_id = "A" + str(assay).zfill(2)
+        sample_id = "S" + str(sample).zfill(self.sample_pad)
+        assay_id = "A" + str(assay).zfill(self.assay_pad)
 
         # After setting IDs, get the normalized fam_rox values and returns only numerics
         fam_raw_vals = self.fam_raw[
@@ -187,8 +238,8 @@ class Biomark:
     # Subtracts ROX background from ROX raw
     def get_fam_bkgd(self, sample, assay):
         # Set sample and assay IDs
-        sample_id = "S" + str(sample).zfill(3)
-        assay_id = "A" + str(assay).zfill(2)
+        sample_id = "S" + str(sample).zfill(self.sample_pad)
+        assay_id = "A" + str(assay).zfill(self.assay_pad)
 
         fam_bkgd_vals = self.fam_bkgd[
             (self.fam_bkgd["Assay ID"] == assay_id) &
@@ -200,8 +251,8 @@ class Biomark:
     # Given sample and assay well numbers, it returns the time-series data for that well only.
     def get_fam_rox(self, sample, assay):
         # Set sample and assay IDs
-        sample_id = "S" + str(sample).zfill(3)
-        assay_id = "A" + str(assay).zfill(2)
+        sample_id = "S" + str(sample).zfill(self.sample_pad)
+        assay_id = "A" + str(assay).zfill(self.assay_pad)
 
         # After setting IDs, get the normalized fam_rox values and returns only numerics
         norm_vals = self.fam_rox[

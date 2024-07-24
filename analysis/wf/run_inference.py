@@ -2,12 +2,13 @@ from pathlib import Path
 import csv
 import os
 import nanoid
+from typing import Optional
 
 from latch.types.file import LatchFile
 from latch.types.directory import LatchDir
 from latch import custom_task
 
-from .lib.data_processing import Biomark
+from .lib.data_processing import Biomark, ChipType, get_assay_groups
 from .lib.fitting_lib import normalize_data, select_representative_samples
 from .lib.inference import fit_shared_params, fit_all_samples, get_mses, get_end_values
 
@@ -20,12 +21,17 @@ def inference_task(
     threshold: float = 5.0,
     num_iter_multi: int = 2,
     num_iter_single: int = 1,
+    chip_type: ChipType = ChipType.s192_a24,
+    assay_replicates: Optional[LatchFile] = None,
 ) -> LatchDir:
     # Convert data to Biomark object
     data_path = Path(raw_data).resolve()
-    data = Biomark(data_path)
+    data = Biomark(data_path, chip_type=chip_type)
 
-    data_unprocessed = [[data.get_fam_rox(sample, gene) for gene in range(1, 25)] for sample in range(1, 193)]
+    num_samples = int(chip_type.value.split(".")[0])
+    num_assays = int(chip_type.value.split(".")[1])
+
+    data_unprocessed = [[data.get_fam_rox(sample, gene) for gene in range(1, num_assays)] for sample in range(1, num_samples)]
     data_normalized = normalize_data(data_unprocessed)
     rep1, rep2 = select_representative_samples(data_normalized)
 
@@ -33,7 +39,14 @@ def inference_task(
     shared_res = fit_shared_params([data_normalized[rep1], data_normalized[rep2]], tol=tol, threshold=threshold, num_iter=num_iter_multi)
 
     print("Calculating concentrations...")
-    all_sample_res = fit_all_samples(data_normalized, shared_res[:10], tol=tol, threshold=threshold, num_iter=num_iter_single)
+    processed_assay_groups = get_assay_groups(assay_replicates, chip_type)
+    all_sample_res = fit_all_samples(
+        data_normalized, 
+        shared_res[:10], 
+        processed_assay_groups,
+        tol=tol, 
+        threshold=threshold, 
+        num_iter=num_iter_single)
     dna_vals = [d[:-1] for d in all_sample_res]
 
     print("Wrapping up...")

@@ -33,7 +33,6 @@ def multi_sample_model(
     return all_results
 
 def multi_sample_constraints(
-    params: list, 
     num_genes: int, 
     num_samples: int
 ) -> list:
@@ -83,11 +82,22 @@ def single_sample_model(
         
     return results
 
-def single_sample_constraints(params: list) -> list:
-    return [{
-        'type': 'eq', 
-        'fun': lambda p: np.sum(np.exp(p[:-1])) - np.exp(p[-1])
-    }]
+def single_sample_constraints(groups: list) -> list:
+    """
+    Groups is a dict of lists. Each list contains 1-indexed indices
+    of assay wells that correspond to a single group / replicate of
+    genes e.g. repeated crRNAs in assay wells due to fill otherwise
+    empty space on chip.
+    """
+    constraints = []
+    for item in groups:
+        group_inds = np.array(groups[item]) - 1
+        constraints.append({
+            'type': 'eq', 
+            'fun': lambda p: np.sum(np.exp(p)[group_inds]) - np.exp(p[-1])
+        })
+
+    return constraints
 
 def multi_sample_error(
     params: list, 

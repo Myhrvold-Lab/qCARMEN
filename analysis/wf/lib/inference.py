@@ -40,7 +40,7 @@ def fit_shared_params(
             [(-np.inf, 1)] + \
             [(-np.inf, np.inf)] * (num_genes * num_samples + num_samples)
 
-        constraints = multi_sample_constraints(initial_params, num_genes, num_samples)
+        constraints = multi_sample_constraints(num_genes, num_samples)
         custom_err_func = lambda p: multi_sample_error(p, data, num_genes, num_samples)
 
         optimizer = OptimizerWithEarlyStopping(tol=tol, threshold = threshold)
@@ -60,7 +60,7 @@ def fit_shared_params(
 def fit_individual_sample(
     data: list,
     shared_params: list,
-    num_shared: int = 10,
+    assay_replicates: dict,
     num_iter: int = 1,
     tol: float = 0.5,
     threshold: float = 5,
@@ -78,7 +78,7 @@ def fit_individual_sample(
         # Generally unconstrained values for DNA and DNA_tot
         bounds = [(-25, 25)] * len(initial_params)
         
-        constraints = single_sample_constraints(initial_params)
+        constraints = single_sample_constraints(assay_replicates)
         custom_err_func = lambda p: single_sample_error(p, shared_params, data, num_genes)
 
         optimizer = OptimizerWithEarlyStopping(tol=tol, threshold=threshold)
@@ -102,6 +102,8 @@ def fit_all_samples(
     data: list,
     # Result from fit_shared_params
     shared_params: list,
+    # Assay well groups
+    assay_replicates: dict,
     num_iter: int = 1,
     tol: float = 0.5,
     threshold: float = 5,
@@ -117,7 +119,7 @@ def fit_all_samples(
     results = [r for r in 
         tqdm(
             Parallel(return_as="generator", n_jobs=-1)(
-                delayed(fit_individual_sample)(sample_data, shared_params, tol=tol, threshold=threshold, num_iter=num_iter)
+                delayed(fit_individual_sample)(sample_data, shared_params, assay_replicates, tol=tol, threshold=threshold, num_iter=num_iter)
                 for sample_data in data
             ),
             total=len(data)

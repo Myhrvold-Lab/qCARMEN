@@ -1,6 +1,8 @@
-from typing import Tuple
+from typing import Tuple, Optional
+from enum import Enum
 
 from wf.run_inference import inference_task
+from wf.lib.data_processing import ChipType
 
 from latch.resources.workflow import workflow
 from latch.types.directory import LatchOutputDir, LatchDir
@@ -15,6 +17,8 @@ flow = [
         Params("raw_data"),
         Text("Choose the output directory where results will be saved. Please choose an empty directory---existing files may be overwritten."),
         Params("output_dir"),
+        Text("Specify the chip type used for this run."),
+        Params("chip_type"),
     ),
     Spoiler(
         "Advanced Options",
@@ -26,6 +30,8 @@ flow = [
         Params("num_iter_multi"),
         Text("Maximum iterations for individual sample fitting. Note that a value higher than 1 can greatly extend the analysis time."),
         Params("num_iter_single"),
+        Text("A .csv file containing assay well indices (1-indexed) in the first column and replicate/group IDs in the second column."),
+        Params("assay_replicates"),
     ),
 ]
 
@@ -59,6 +65,14 @@ metadata = LatchMetadata(
             display_name="Iteration Limit (Single-Sample Fitting)",
             description="Number of times model will fit each sample for concentration evaluation.",
         ),
+        "chip_type": LatchParameter(
+            display_name="Biomark Microfluidic Chip Format",
+            description="Chip format e.g. 192.24 or 96.96 format.",
+        ),
+        "assay_replicates": LatchParameter(
+            display_name="Assay Groups",
+            description="A .csv file assigning each assay well to a group/replicate.",
+        ),
     },
     flow=flow,
 )
@@ -71,9 +85,9 @@ def analysis(
     threshold: float = 5.0,
     num_iter_multi: int = 2,
     num_iter_single: int = 1,
-    # output_directory: LatchOutputDir
+    chip_type: ChipType = ChipType.s192_a24,
+    assay_replicates: Optional[LatchFile] = None,
 ) -> LatchDir:
-# ) -> Tuple[LatchFile, LatchFile, LatchFile]:
     """Description...
 
     qCARMEN Analysis
@@ -89,4 +103,6 @@ def analysis(
         tol=tol, 
         threshold=threshold, 
         num_iter_multi=num_iter_multi, 
-        num_iter_single=num_iter_single)
+        num_iter_single=num_iter_single,
+        chip_type=chip_type,
+        assay_replicates=assay_replicates)
