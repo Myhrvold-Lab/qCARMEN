@@ -31,7 +31,35 @@ def inference_task(
     num_samples = int(chip_type.value.split(".")[0])
     num_assays = int(chip_type.value.split(".")[1])
 
-    data_unprocessed = [[data.get_fam_rox(sample, gene) for gene in range(1, num_assays + 1)] for sample in range(1, num_samples + 1)]
+    qcarmen_inds = {
+        'GAPDH': 1,
+        'BST2': 2,
+        'TREX1': 3,
+        'HPRT1': 13,
+        'SSBP3': 14,
+        'IRF7': 15,
+        'IFITM3': 25,
+        'ADAR': 26,
+        'TRIM25': 27,
+        'CD74': 37,
+        'SLC25A28': 38,
+        'OASL': 39,
+        'DDIT4': 49,
+        'GBP2': 50,
+        'IFNB1': 51,
+        'IFITM1': 61,
+        'MX1': 62,
+        'IFNA2': 63,
+        'IFITM2': 73,
+        'MOV10': 74,
+        'IFNL3': 75,
+        'NAMPT': 85,
+        'PML': 86,
+        'ISG15': 87,
+    }
+    assay_inds = [i for _, i in qcarmen_inds.items()]
+    data_unprocessed = [[data.get_fam_rox(sample, gene) for gene in assay_inds] for sample in range(1, num_samples + 1)]
+    # data_unprocessed = [[data.get_fam_rox(sample, gene) for gene in range(1, num_assays + 1)] for sample in range(1, num_samples + 1)]
     data_normalized = normalize_data(data_unprocessed)
     rep1, rep2 = select_representative_samples(data_normalized)
 
