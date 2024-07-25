@@ -31,7 +31,7 @@ def inference_task(
     num_samples = int(chip_type.value.split(".")[0])
     num_assays = int(chip_type.value.split(".")[1])
 
-    data_unprocessed = [[data.get_fam_rox(sample, gene) for gene in range(1, num_assays)] for sample in range(1, num_samples)]
+    data_unprocessed = [[data.get_fam_rox(sample, gene) for gene in range(1, num_assays + 1)] for sample in range(1, num_samples + 1)]
     data_normalized = normalize_data(data_unprocessed)
     rep1, rep2 = select_representative_samples(data_normalized)
 
