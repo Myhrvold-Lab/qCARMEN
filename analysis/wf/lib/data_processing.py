@@ -20,8 +20,9 @@ def get_assay_groups(file_path: Optional[str], chip_type: ChipType) -> dict:
     """
     # If file_path is None, we just assume we have no assay replicates
     num_assays = int(chip_type.value.split(".")[1])
+    # if chip_type is ChipType.s96_a96: num_assays = 24
     if file_path is None:
-        return {"0": list(range(1, num_assays + 1))}
+        return {"R1": list(range(1, num_assays + 1))}
 
     groups = defaultdict(list)
     with open(file_path, "r") as f:
@@ -37,7 +38,7 @@ def get_assay_groups(file_path: Optional[str], chip_type: ChipType) -> dict:
         total_assigned += len(g[1])
 
     assert total_assigned == num_assays, \
-        "Total number of wells in assay replicate file should equal total number of wells for specified chip type."
+        f"Total number of wells in assay replicate file ({total_assigned}) should equal total number of wells for specified chip type ({num_assays})."
 
     return groups
 

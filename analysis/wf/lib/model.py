@@ -7,10 +7,8 @@ def simulation(
     t_init: float, 
     t_max: float, 
     dt_tols: list, 
-    # Differential equation parameters
-    params: list,
-    # Function that returns differential equation functions
-    get_diff_eqs: Callable,
+    params: list, # Differential equation parameters
+    get_diff_eqs: Callable, # Function that returns differential equation functions
     t_eval: Optional[np.array] = None
 ) -> Tuple[np.array, np.array]:
     """
@@ -21,10 +19,10 @@ def simulation(
     def dz_dt(variables):
         return(np.array([eq(variables) for eq in eqs_res]))
     
-    def diff_eqs_sol(tSpan, params, z0):
+    def diff_eqs_sol(tSpan, z0):
         # solve ODE
         odeSol = integrate.solve_ivp(
-            lambda tSpan, z: dz_dt(z),
+            lambda _, z: dz_dt(z),
             tSpan, 
             z0, 
             t_eval=t_eval,
@@ -38,7 +36,7 @@ def simulation(
 
         return t, z
 
-    t_vec, z_t = diff_eqs_sol([t_init, t_max], [], z0)
+    t_vec, z_t = diff_eqs_sol([t_init, t_max], z0)
     
     return(t_vec, z_t)
 
@@ -48,14 +46,10 @@ def eqs_log(log_params: np.array) -> Tuple[float, float, float, float]:
     
     # Unpackage parameters
     kcat_trans, kcat_cis, kcat_t7, kf_cis_target, kr_cis_target, \
-        kf_cis_other, kr_cis_other, kf_trans, kr_trans, Rep_0, DNA_tot, DNA = params
+        kf_cis_other, kr_cis_other, kf_trans, kr_trans, Rep_0, E_0, T7_0, DNA_tot, DNA = params
     
     # Clip DNA if DNA > DNA_tot
     if DNA >= DNA_tot: DNA = DNA_tot - 1e-30
-
-    # Set known reagent concentration parameters
-    E_0 = Rep_0 / 50
-    T7_0 = Rep_0 * 7.2 / 500
     
     # Fluorescent reporter (separated from quencher)
     def dF_dt(variables):
@@ -83,13 +77,13 @@ def eqs_log(log_params: np.array) -> Tuple[float, float, float, float]:
         F, AE, T_t, T_o = variables
 
         return kcat_t7 * DNA * T7_0
-        
+    
     def dTo_dt(variables):
         F, AE, T_t, T_o = variables
 
         return kcat_t7 * (DNA_tot - DNA) * T7_0
     
-    return(dF_dt, dAE_dt, dTt_dt, dTo_dt)
+    return (dF_dt, dAE_dt, dTt_dt, dTo_dt)
 
 def y_model(theta: list, t_max: float = 1, steps: int = 100) -> np.array:
     _, z_t = simulation(

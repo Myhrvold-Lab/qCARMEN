@@ -8,10 +8,10 @@ from joblib import Parallel, delayed
 from .model import y_model
 from .optimizer_lib import OptimizerWithEarlyStopping, run_minimize_with_stopping
 from .fitting_lib import multi_sample_constraints, multi_sample_error, single_sample_constraints, single_sample_error
+from .constants import NUM_SHARED_PARAMS
 
 def fit_shared_params(
     data: list,
-    num_shared: int = 10,
     num_iter: int = 3,
     tol: float = 0.5,
     threshold: float = 5,
@@ -32,18 +32,18 @@ def fit_shared_params(
         print(f"Beginning shared fitting iteration {iter_ind + 1} of {num_iter}...")
         # Shared params + DNA and DNA_excess for each gene in each sample
         initial_params = np.concatenate([
-            np.random.rand(10), 
+            np.random.rand(NUM_SHARED_PARAMS), 
             np.ones(num_genes * num_samples), 
             2 * np.ones(num_samples)
         ])
-        multi_bounds = [(-15, 15)] * (num_shared - 1) + \
+        multi_bounds = [(-15, 15)] * (NUM_SHARED_PARAMS - 1) + \
             [(-np.inf, 1)] + \
             [(-np.inf, np.inf)] * (num_genes * num_samples + num_samples)
 
         constraints = multi_sample_constraints(num_genes, num_samples)
         custom_err_func = lambda p: multi_sample_error(p, data, num_genes, num_samples)
 
-        optimizer = OptimizerWithEarlyStopping(tol=tol, threshold = threshold)
+        optimizer = OptimizerWithEarlyStopping(tol=tol, threshold=threshold)
         res_params, res_err = run_minimize_with_stopping(
             optimizer, 
             initial_params, 
@@ -60,29 +60,31 @@ def fit_shared_params(
 def fit_individual_sample(
     data: list,
     shared_params: list,
-    assay_replicates: dict,
     num_iter: int = 1,
     tol: float = 0.5,
     threshold: float = 5,
 ) -> list:
     assert len(data) > 0
+
+    print("Fitting individual sample...")
     
     # Infer from data
     num_genes = len(data)
+    print("Number of genes:", num_genes)
     
     # Collect parameters and errors
     param_res = []
     
-    for iter_ind in range(num_iter):
+    for _ in range(num_iter):
         initial_params = np.concatenate([np.random.rand(num_genes), 2 * np.ones(1)])
         # Generally unconstrained values for DNA and DNA_tot
         bounds = [(-25, 25)] * len(initial_params)
         
-        constraints = single_sample_constraints(assay_replicates)
+        groups = {"G1": list(range(1, num_genes + 1))}
+        constraints = single_sample_constraints(groups)
         custom_err_func = lambda p: single_sample_error(p, shared_params, data, num_genes)
 
         optimizer = OptimizerWithEarlyStopping(tol=tol, threshold=threshold)
-        # Just for testing, switch back
         res_params, res_err = run_minimize_with_stopping(
             optimizer, 
             initial_params, 
@@ -102,8 +104,6 @@ def fit_all_samples(
     data: list,
     # Result from fit_shared_params
     shared_params: list,
-    # Assay well groups
-    assay_replicates: dict,
     num_iter: int = 1,
     tol: float = 0.5,
     threshold: float = 5,
@@ -115,11 +115,13 @@ def fit_all_samples(
     Returns DNA concentrations + DNA_tot at the end of each sample list.
     """
     assert len(data) > 0 and len(data[0]) > 0
+
+    print("Data length:", len(data))
     
     results = [r for r in 
         tqdm(
             Parallel(return_as="generator", n_jobs=-1)(
-                delayed(fit_individual_sample)(sample_data, shared_params, assay_replicates, tol=tol, threshold=threshold, num_iter=num_iter)
+                delayed(fit_individual_sample)(sample_data, shared_params, tol=tol, threshold=threshold, num_iter=num_iter)
                 for sample_data in data
             ),
             total=len(data)

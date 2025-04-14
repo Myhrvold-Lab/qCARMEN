@@ -2,6 +2,7 @@ import numpy as np
 from joblib import Parallel, delayed
 
 from .model import y_model
+from .constants import NUM_SHARED_PARAMS
 
 def multi_sample_model(
     params: list, 
@@ -9,7 +10,7 @@ def multi_sample_model(
     num_samples: int,
     num_timesteps: int = 37,
 ) -> list:
-    num_shared = 10
+    num_shared = NUM_SHARED_PARAMS
     shared_params = params[:num_shared]
     dna_vals = params[num_shared:num_shared + num_samples * num_genes]
     dna_tot_vals = params[num_shared + num_samples * num_genes:]
@@ -40,7 +41,7 @@ def multi_sample_constraints(
     Returns constraints for initial multi-sample fitting process.
     """
     constraints = []
-    start = 10
+    start = NUM_SHARED_PARAMS
     
     # Calculate indices for DNA and DNA_tot
     # DNA indices for each gene in each sample
@@ -92,6 +93,7 @@ def single_sample_constraints(groups: list) -> list:
     constraints = []
     for item in groups:
         group_inds = np.array(groups[item]) - 1
+        print("Group inds:", group_inds)
         constraints.append({
             'type': 'eq', 
             'fun': lambda p: np.sum(np.exp(p)[group_inds]) - np.exp(p[-1])
