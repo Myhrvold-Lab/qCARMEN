@@ -20,6 +20,7 @@ from .lib.adapt_lib import complete_targets, sliding_window, align_seqs, select_
 def adapt_task(
     target_obj: LatchFile, 
     fastas: LatchDir,
+    output_dir: LatchDir,
     adapt_dir: typing.Optional[LatchDir] = None,
     specificity: bool = False,
     dt_string: typing.Optional[str] = None,
@@ -33,11 +34,8 @@ def adapt_task(
     target_path = Path(target_obj).resolve()
     with open(target_path, "rb") as f: target = pickle.load(f)
 
-    print("Target:", target)
-
     # Pass to Path object and resolve
     fasta_dir = Path(fastas).resolve()
-    # fasta_dir = fastas.local_path
     # Get a static list of all fasta files (aka gene names) in the directory
     all_fastas = os.listdir(fasta_dir)
 
@@ -76,14 +74,14 @@ def adapt_task(
     num_cores = os.cpu_count()
     print("CPU Count:", num_cores)
     with multiprocessing.Pool(num_cores) as pool:
-        print(pool.starmap(sliding_window, sliding_cmds))
+        # print(pool.starmap(sliding_window, sliding_cmds))
         print(pool.starmap(complete_targets, complete_cmds))
 
     print("Design process complete.")
 
-    # return LatchDir(adapt_designs)
-
-    return LatchDir(adapt_designs, "latch:///qCARMEN/outputs/" + dt_string + "/adapt/")
+    outdir_path = output_dir.remote_path
+    print("Output directory:", outdir_path)
+    return LatchDir(adapt_designs, f"{outdir_path}/{dt_string}/adapt/")
 
 def generate_adapt_cmd(
     target_key: str,

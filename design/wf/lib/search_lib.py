@@ -11,6 +11,7 @@ from Bio import SeqIO
 def get_gbs(
     gene_name,
     organism,
+    ncbi_key: str,
 ):
     print("Searching for", gene_name)
     # The base URL to call NIH nuccore API
@@ -19,7 +20,7 @@ def get_gbs(
     esearch_url = (base_url 
         + "esearch.fcgi" 
         + "?db=nuccore" 
-        + "&api_key=aee6f92caa65c57070b14801ba2b905ea108")
+        + "&api_key=" + ncbi_key)
 
     # We add onto the base URL using the gene of interest
     esearch_url += '&term=(' + gene_name + '[Gene Name] NOT PREDICTED [Title] AND srcdb_refseq[PROP]) AND "' + organism + '"[porgn] AND srcdb_refseq[PROP] AND biomol_mrna[PROP]'
@@ -39,7 +40,7 @@ def get_gbs(
     epost_url = (base_url 
         + "epost.fcgi" 
         + "?db=nuccore" 
-        + "&api_key=aee6f92caa65c57070b14801ba2b905ea108" 
+        + "&api_key=" + ncbi_key 
         + "&id=" 
         + ",".join(transcript_ids))
 
@@ -53,7 +54,7 @@ def get_gbs(
     efetch_url = (base_url 
         + "efetch.fcgi" 
         + "?db=nuccore" 
-        + "&api_key=aee6f92caa65c57070b14801ba2b905ea108" 
+        + "&api_key=" + ncbi_key 
         + "&query_key=" + query_key
         + "&WebEnv=" + web_env
         + "&rettype=gbwithparts" 

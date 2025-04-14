@@ -10,6 +10,7 @@ from latch.resources.tasks import small_task
 @small_task
 def write_task(
     target_obj: LatchFile,
+    output_dir: LatchDir,
     dt_string: typing.Optional[str] = None,
 ) -> typing.Tuple[LatchFile, LatchFile]:
     """
@@ -76,5 +77,6 @@ def write_task(
     primer_file.close()
     
     # return LatchFile("/root/final.csv"), LatchFile("/root/primers_only.csv")
-
-    return LatchFile("/root/final.csv", "latch:///" + "qCARMEN/outputs/" + dt_string + "/results/crRNAs.csv"), LatchFile("/root/primers_only.csv", "latch:///" + "qCARMEN/outputs/" + dt_string + "/results/primers_only.csv")
+    outdir_path = output_dir.remote_path
+    return LatchFile("/root/final.csv", f"{outdir_path}/{dt_string}/results/crRNAs.csv"),\
+        LatchFile("/root/primers_only.csv", f"{outdir_path}/{dt_string}/results/primers_only.csv")

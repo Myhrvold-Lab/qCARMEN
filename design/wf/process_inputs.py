@@ -13,10 +13,12 @@ from latch.resources.tasks import small_task
 def input_task(
     # .csv file with target/isoform info
     target_file: LatchFile,
+    output_dir: LatchDir,
     # Optional: directory of folders with Genbank files for each target
     genbank_dir: typing.Optional[LatchDir]=None,
     # Optional: directory of ADAPT outputs for targets
     adapt_dir: typing.Optional[LatchDir]=None,
+    dt_string: typing.Optional[str] = None,
 ) -> LatchFile:
     """
     Does the following:
@@ -41,7 +43,10 @@ def input_task(
     with open(target_pickled, "wb") as f:
         pickle.dump(target_dict, f)
 
-    return LatchFile(target_pickled)
+    print("Target pickle file:", target_pickled)
+
+    # return LatchFile(target_pickled)
+    return LatchFile(target_pickled, f"{output_dir.remote_path}/{dt_string}/tmp/targets.pkl")
 
 # Helper function that returns a dictionary of target info
 def create_target_dict(target_path):

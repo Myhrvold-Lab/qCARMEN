@@ -44,14 +44,18 @@ metadata = LatchMetadata(
             #     )
             # ],
         ),
+        "ncbi_key": LatchParameter(
+            display_name="NCBI API Key",
+            description="API Key for RefSeq gene search.",
+        ),
+        "output_dir": LatchParameter(
+            display_name="Output Directory",
+            description="Directory to save output files.",
+        ),
         "organism": LatchParameter(
             display_name="Organism",
             description="Scientific name for organism of interest (e.g. Homo sapiens).",
         ),
-        # "ncbi_key": LatchParameter(
-        #     display_name="NCBI API Key",
-        #     description="API Key for RefSeq gene search.",
-        # ),
         "genbank_dir": LatchParameter(
             display_name="Genbank Directory",
             description="Optional directory for existing Genbank files.",
@@ -73,10 +77,12 @@ def design(
     # Genes/isoforms in .csv
     target_list: LatchFile,
     # output_directory: LatchOutputDir,
+    # API key for NCBI
+    ncbi_key: str,
+    # Output directory
+    output_dir: LatchOutputDir,
     # Organism name
     organism: str = "Homo sapiens",
-    # API key for NCBI
-    # ncbi_key: LatchFile,
     # Optional: Genbank files for targets
     genbank_dir: Optional[LatchDir] = None,
     # Optional: ADAPT files for targets
@@ -98,16 +104,47 @@ def design(
 
     target_obj = input_task(
         target_file = target_list,
+        output_dir = output_dir,
         genbank_dir = genbank_dir,
         adapt_dir = adapt_dir_provided,
-        # target_file = LatchFile("latch:///test_data/short_list.csv"),
+        dt_string = dt_string,
     )
-
-    gb_dir, fasta_dir = gene_search_task(target_obj=target_obj, genbank_dir=genbank_dir, organism=organism, dt_string=dt_string)
-    adapt_dir = adapt_task(target_obj=target_obj, fastas=fasta_dir, adapt_dir=adapt_dir_provided, specificity=False, dt_string=dt_string)
-    primer_obj = primer_task(target_obj=target_obj, gb_dir=gb_dir, adapt_dir=adapt_dir, timeout=3600)
-    mod_obj = mod_task(primer_obj=primer_obj, target_obj=target_obj, gb_dir=gb_dir)
-    return write_task(target_obj=mod_obj, dt_string=dt_string)
+    gb_dir, fasta_dir, target_file = gene_search_task(
+        target_obj=target_obj,
+        output_dir=output_dir,
+        genbank_dir=genbank_dir,
+        organism=organism,
+        ncbi_key=ncbi_key,
+        dt_string=dt_string,
+    )
+    adapt_dir = adapt_task(
+        target_obj=target_file, 
+        fastas=fasta_dir, 
+        output_dir=output_dir,
+        adapt_dir=adapt_dir_provided, 
+        specificity=False, 
+        dt_string=dt_string,
+    )
+    primer_obj = primer_task(
+        target_obj=target_obj, 
+        output_dir=output_dir,
+        gb_dir=gb_dir, 
+        adapt_dir=adapt_dir, 
+        timeout=3600,
+        dt_string=dt_string,
+    )
+    mod_obj = mod_task(
+        primer_obj=primer_obj, 
+        target_obj=target_obj, 
+        output_dir=output_dir,
+        gb_dir=gb_dir,
+        dt_string=dt_string,
+    )
+    return write_task(
+        target_obj=mod_obj, 
+        output_dir=output_dir, 
+        dt_string=dt_string
+    )
 
 """
 Add test data with a LaunchPlan. Provide default values in a dictionary with

@@ -2,6 +2,7 @@ import csv
 import os
 from pathlib import Path
 import pickle
+from typing import Optional
 
 from latch.types.file import LatchFile
 from latch.types.directory import LatchDir
@@ -17,10 +18,12 @@ from .lib.parallelization_lib import run_parallel_processes
 @medium_task
 def primer_task(
     target_obj: LatchFile,
+    output_dir: LatchDir,
     gb_dir: LatchDir,
     adapt_dir: LatchDir,
     # Timeout in seconds (set to 1 hour by default)
     timeout: int = 3600,
+    dt_string: Optional[str] = None,
 ) -> LatchFile:
     """
     Designs primers given a set of crRNA candidates and all sequences.
@@ -69,7 +72,7 @@ def primer_task(
     with open(designs_pickled, "wb") as f:
         pickle.dump(design_res.copy(), f)
 
-    return LatchFile(designs_pickled)
+    return LatchFile(designs_pickled, f"{output_dir.remote_path}/{dt_string}/tmp/primer_designs.pkl")
 
 def design_function(params):
     try:

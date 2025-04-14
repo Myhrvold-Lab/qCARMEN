@@ -7,6 +7,7 @@ import os
 from latch.types.file import LatchFile
 from latch.types.directory import LatchDir
 from latch.resources.tasks import small_task
+from latch.ldata.path import LPath
 
 from Bio import SeqIO
 from datetime import datetime
@@ -16,11 +17,12 @@ from .lib.search_lib import get_gbs, save_gbs
 @small_task
 def gene_search_task(
     target_obj: LatchFile,
-    # ncbi_key: typing.Optional[str] = None,
+    output_dir: LatchDir,
+    ncbi_key: typing.Optional[str] = None,
     genbank_dir: typing.Optional[LatchDir] = None,
     organism: typing.Optional[str] = "Homo sapiens",
     dt_string: typing.Optional[str] = None,
-) -> Tuple[LatchDir, LatchDir]:
+) -> Tuple[LatchDir, LatchDir, LatchFile]:
     """
     Find Genbank files for each gene and return a directory of FASTAs and a 
     directory with individual Genbank files.
@@ -46,7 +48,7 @@ def gene_search_task(
         gb_path = target[target_key]["gb_dir"]
         if gb_path is None:
             # Get genbank files
-            gbs = get_gbs(target_key, organism)
+            gbs = get_gbs(target_key, organism, ncbi_key)
             # Write these to fasta files
             SeqIO.write(gbs, fasta_dir + target_key + ".fasta", "fasta")
             # Save the genbank files
@@ -71,5 +73,7 @@ def gene_search_task(
     with open(target_pickled, "wb") as f:
         pickle.dump(target, f)
 
-    # return LatchDir(gb_dir), LatchDir(fasta_dir)
-    return LatchDir(gb_dir, "latch:///qCARMEN/outputs/" + dt_string + "/gbs/"), LatchDir(fasta_dir, "latch:///qCARMEN/outputs/" + dt_string + "/fastas/")
+    outdir_path = output_dir.remote_path
+    return LatchDir(gb_dir, f"{outdir_path}/{dt_string}/gbs/"), \
+        LatchDir(fasta_dir, f"{outdir_path}/{dt_string}/fastas/"), \
+        LatchFile(target_pickled, f"{outdir_path}/{dt_string}/tmp/targets.pkl")

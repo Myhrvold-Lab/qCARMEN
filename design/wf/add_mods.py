@@ -13,8 +13,9 @@ from .lib.search_lib import read_gbs
 def mod_task(
     primer_obj: LatchFile,
     target_obj: LatchFile,
+    output_dir: LatchDir,
     gb_dir: LatchDir,
-    # dt_string: typing.Optional[str] = None,
+    dt_string: typing.Optional[str] = None,
 ) -> LatchFile:
     """
     Adds T7 promoter, 3' blockers, and required mismatches for Gen1 primers.
@@ -63,7 +64,7 @@ def mod_task(
     with open(targets_pickled, "wb") as f:
         pickle.dump(targets.copy(), f)
 
-    return LatchFile(targets_pickled)
+    return LatchFile(targets_pickled, f"{output_dir.remote_path}/{dt_string}/tmp/targets.pkl")
 
 # Mods with blocker/mismatch and T7 promoter if forward primer
 def get_modded(primers, all_seqs, direction=1):
