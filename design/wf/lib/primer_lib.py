@@ -4,6 +4,7 @@ from Bio.SeqUtils import GC
 import numpy as np
 import itertools
 import math
+from typing import List
 
 def design_candidates(
     # GenBank records of all isoforms
@@ -246,16 +247,49 @@ def design_candidates(
             # Loop through crRNAs and check specificity
             for crRNA in current_crRNAs:
                 crRNA_sequence = crRNA[0]
-                if design_specificity(crRNA_sequence, fw_primers, rev_primers, non_target_seqs):
-                    # print(optimize_primer_length(
-                    #     fw_primers,
-                    #     rev_primers,
-                    #     target_gbs
-                    # ))
+                specificity_check = design_specificity(crRNA_sequence, fw_primers, rev_primers, non_target_seqs)
+
+                print("Check params:", crRNA_sequence, fw_primers, rev_primers, non_target_seqs, target_gbs)
+
+                # Check that the crRNA is in between the forward and reverse primers
+                crrna_between_primers = check_between_primers(crRNA_sequence, fw_primers, rev_primers, target_gbs)
+
+                if specificity_check and crrna_between_primers:
                     return (crRNA_sequence, fw_primers, rev_primers)
 
     # If we go through all of the results and none of them have a valid crRNA, just return None
     return None
+
+def check_between_primers(
+    crRNA: str, 
+    fw_pool: List[str], 
+    rev_pool: List[str], 
+    target_gbs: list # List of SeqRecord objects
+) -> bool:
+    """
+    Checks that the crRNA is in between the forward and reverse primers.
+    """
+    fw_rev_combos = list(itertools.product(fw_pool, rev_pool))
+    between_all = True
+    for gb in target_gbs:
+        cr_ind = str(gb.seq).upper().find(crRNA.upper())
+        if cr_ind == -1:
+            between_all = False
+            break
+
+        for fw, rev in fw_rev_combos:
+            fw_ind = str(gb.seq).upper().find(fw.upper())
+            rev_ind = str(gb.seq).upper().find(str(Seq(rev).reverse_complement()).upper())
+
+            if fw_ind == -1 or rev_ind == -1:
+                between_all = False
+                break
+
+            if cr_ind < fw_ind or cr_ind > rev_ind:
+                between_all = False
+                break
+
+    return between_all
 
 def find_primers(
     # Search region provided 5' to 3'
@@ -482,7 +516,7 @@ def design_specificity(crRNA, fw_pool, rev_pool, non_target_seqs):
 
     for combo in fw_rev_combos:
         fw_specificity = [seq.seq.find(combo[0]) for seq in non_target_seqs]
-        rev_specificity = [seq.seq.find(combo[1]) for seq in non_target_seqs]
+        rev_specificity = [seq.seq.find(str(Seq(combo[1]).reverse_complement())) for seq in non_target_seqs]
 
         # Loop through indices of non-target sequences
         for ind in range(len(non_target_seqs)):

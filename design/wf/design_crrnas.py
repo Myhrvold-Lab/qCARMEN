@@ -7,6 +7,8 @@ import typing
 from latch.types.file import LatchFile
 from latch.types.directory import LatchDir
 from latch.resources.tasks import medium_task
+from latch import custom_task
+from typing import List
 
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -16,7 +18,17 @@ from datetime import datetime
 # Library imports
 from .lib.adapt_lib import complete_targets, sliding_window, align_seqs, select_spacer
 
-@medium_task
+def allocate_cpu(
+    fastas: LatchDir,
+    **kwargs
+) -> int: # number of cores to allocate
+    fasta_dir = Path(fastas).resolve()
+    # Get a static list of all fasta files (aka gene names) in the directory
+    all_fastas = os.listdir(fasta_dir)
+    return min(len(all_fastas), 32)
+
+# @custom_task(cpu=allocate_cpu, memory=128)
+@custom_task(cpu=24, memory=128)
 def adapt_task(
     target_obj: LatchFile, 
     fastas: LatchDir,
