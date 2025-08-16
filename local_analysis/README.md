@@ -7,6 +7,15 @@ source .venv/bin/activate
 uv pip install -r requirements.txt
 ```
 
+If you do not already have uv installed on your system, you can
+find installation instructions [here](https://docs.astral.sh/uv/).
+
+Alternatively, you can just install the required packages using
+`pip` in a conda environment or an environment of your choosing:
+```bash
+pip install -r requirements.txt
+```
+
 You can run the pipeline using the following command:
 ```bash
 mkdir logs
