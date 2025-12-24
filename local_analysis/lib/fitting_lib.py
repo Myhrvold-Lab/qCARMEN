@@ -179,7 +179,54 @@ def select_representative_samples(data: list, num_reps: int = 2) -> list[int]:
 
     # Otherwise, return smallest to highest, equally spaced
     k = min(num_reps, end_totals.size)
-    order = np.argsort(end_totals)
-    pos = np.linspace(0, end_totals.size - 1, k).round().astype(int)
-    chosen = order[pos].tolist()
+    min_val = float(end_totals[min_ind])
+    max_val = float(end_totals[max_ind])
+
+    # If totals are the same, space evenly
+    if np.isclose(min_val, max_val):
+        return np.linspace(0, end_totals.size - 1, k, dtype=int).tolist()
+
+    # Space out target values
+    targets = np.linspace(min_val, max_val, k)
+
+    # Compute distance to each end_val across target values
+    dists = np.abs(targets[:, None] - end_totals[None, :])
+
+    # Greedily assign targest to closest sample
+    chosen = []
+    used = set()
+    for i in range(k):
+        for j in np.argsort(dists[i]):
+            j = int(j)
+            if j not in used:
+                used.add(j)
+                chosen.append(j)
+                break
+
+    chosen.sort(key=lambda idx: end_totals[idx])
     return chosen
+
+
+# def select_representative_samples(data: list, num_reps: int = 2) -> list[int]:
+#     assert num_reps > 1, "num_reps must be greater than 1."
+#     end_totals = np.array([np.sum([p[-1] for p in s]) for s in data])
+
+#     # Indices for the largest and smallest values
+#     max_ind = int(np.argmax(end_totals))
+#     min_ind = int(np.argmin(end_totals))
+
+#     # Calculate halfway value
+#     midpoint = (end_totals[max_ind] + end_totals[min_ind]) / 2
+
+#     # Finding the index of the value closest to halfway
+#     mid_ind = int(np.argmin(np.abs(end_totals - midpoint)))
+
+#     if num_reps == 2:
+#         return [max_ind, mid_ind]
+
+#     # Otherwise, return smallest to highest, equally spaced
+#     k = min(num_reps, end_totals.size)
+#     order = np.argsort(end_totals)
+#     pos = np.linspace(0, end_totals.size - 1, k).round().astype(int)
+#     chosen = order[pos].tolist()
+#     return chosen
