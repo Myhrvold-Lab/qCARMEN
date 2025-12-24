@@ -47,11 +47,12 @@ def inference_task(
             for sample in range(1, num_samples + 1)
         ]
         data_normalized = normalize_data(data_unprocessed)
-        rep1, rep2 = select_representative_samples(data_normalized, num_reps)
+        reps = select_representative_samples(data_normalized, num_reps)
+        shared_data = [data_normalized[rep] for rep in reps]
 
         print("Calculating shared parameters...")
         shared_res = fit_shared_params(
-            [data_normalized[rep1], data_normalized[rep2]],
+            shared_data,
             tol=tol,
             threshold=threshold,
             num_iter=num_iter_multi,
