@@ -1,22 +1,26 @@
-from enum import Enum
-from typing import Optional
-import pandas as pd
-import numpy as np
-import csv
-from collections import defaultdict
-
 """
 Data object for processing Biomark raw files.
-
 Requires data for "Passive Reference ROX". Otherwise does not work.
 """
+
+import csv
+from collections import defaultdict
+from enum import Enum
+from pathlib import Path
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+
+
 class ChipType(Enum):
     s192_a24 = "192.24"
     s96_a96 = "96.96"
 
+
 def get_assay_groups(file_path: Optional[str], chip_type: ChipType) -> dict:
     """
-    Processes assay grouping .csv file. 
+    Processes assay grouping .csv file.
     """
     # If file_path is None, we just assume we have no assay replicates
     num_assays = int(chip_type.value.split(".")[1])
@@ -37,16 +41,18 @@ def get_assay_groups(file_path: Optional[str], chip_type: ChipType) -> dict:
     for g in groups.items():
         total_assigned += len(g[1])
 
-    assert total_assigned == num_assays, \
+    assert total_assigned == num_assays, (
         f"Total number of wells in assay replicate file ({total_assigned}) should equal total number of wells for specified chip type ({num_assays})."
+    )
 
     return groups
+
 
 class Biomark:
     # Instantiate class with file location
     def __init__(
-        self, 
-        file_location: str, 
+        self,
+        file_location: str | Path,
         chip_type: ChipType,
         probe_name: str = "SNPtype-FAM",
     ):
@@ -68,7 +74,7 @@ class Biomark:
         # Open file
         with open(file_location) as csv_file:
             # Initiate CSV reader
-            csv_reader = csv.reader(csv_file, delimiter=',')
+            csv_reader = csv.reader(csv_file, delimiter=",")
 
             # Most recent data category
             cats = [
@@ -99,8 +105,13 @@ class Biomark:
                     lines_processed = 0
                     # After setting, move onto the next row
                     continue
-                if curr_cat != None and row and row[0] != "Chamber ID" and lines_processed < line_limit:
-                    data_agg[curr_cat].append(row[:len(headers)])
+                if (
+                    curr_cat != None
+                    and row
+                    and row[0] != "Chamber ID"
+                    and lines_processed < line_limit
+                ):
+                    data_agg[curr_cat].append(row[: len(headers)])
                     # Increment number of lines processed and continue
                     lines_processed += 1
                     continue
@@ -125,7 +136,7 @@ class Biomark:
         df_fam_bkgd = pd.DataFrame(fam_bkgd, columns=headers)
 
         # Get column names
-        cols = df_fam_raw.columns.drop('Chamber ID')
+        cols = df_fam_raw.columns.drop("Chamber ID")
 
         # Converts all values to numeric values
         df_rox_raw[cols] = df_rox_raw[cols].apply(pd.to_numeric)
@@ -144,12 +155,24 @@ class Biomark:
         df_fam_rox[cols] = df_fam_sub[cols].divide(df_rox_sub[cols])
 
         # Split
-        df_fam_rox[["Sample ID", "Assay ID"]] = df_fam_rox["Chamber ID"].str.split("-", expand=True)
-        df_rox_sub[["Sample ID", "Assay ID"]] = df_rox_sub["Chamber ID"].str.split("-", expand=True)
-        df_rox_bkgd[["Sample ID", "Assay ID"]] = df_rox_bkgd["Chamber ID"].str.split("-", expand=True)
-        df_rox_raw[["Sample ID", "Assay ID"]] = df_rox_raw["Chamber ID"].str.split("-", expand=True)
-        df_fam_bkgd[["Sample ID", "Assay ID"]] = df_fam_bkgd["Chamber ID"].str.split("-", expand=True)
-        df_fam_raw[["Sample ID", "Assay ID"]] = df_fam_raw["Chamber ID"].str.split("-", expand=True)
+        df_fam_rox[["Sample ID", "Assay ID"]] = df_fam_rox["Chamber ID"].str.split(
+            "-", expand=True
+        )
+        df_rox_sub[["Sample ID", "Assay ID"]] = df_rox_sub["Chamber ID"].str.split(
+            "-", expand=True
+        )
+        df_rox_bkgd[["Sample ID", "Assay ID"]] = df_rox_bkgd["Chamber ID"].str.split(
+            "-", expand=True
+        )
+        df_rox_raw[["Sample ID", "Assay ID"]] = df_rox_raw["Chamber ID"].str.split(
+            "-", expand=True
+        )
+        df_fam_bkgd[["Sample ID", "Assay ID"]] = df_fam_bkgd["Chamber ID"].str.split(
+            "-", expand=True
+        )
+        df_fam_raw[["Sample ID", "Assay ID"]] = df_fam_raw["Chamber ID"].str.split(
+            "-", expand=True
+        )
 
         self.rox_raw = df_rox_raw.copy()
         self.rox_bkgd = df_rox_bkgd.copy()
@@ -164,18 +187,26 @@ class Biomark:
         assay_id = "A" + str(assay).zfill(self.assay_pad)
 
         # After setting IDs, get the normalized fam_rox values and returns only numerics
-        rox_raw_vals = self.rox_raw[
-            (self.rox_raw["Assay ID"] == assay_id) &
-            (self.rox_raw["Sample ID"] == sample_id)
-        ].select_dtypes(include=np.number).values[0]
+        rox_raw_vals = (
+            self.rox_raw[
+                (self.rox_raw["Assay ID"] == assay_id)
+                & (self.rox_raw["Sample ID"] == sample_id)
+            ]
+            .select_dtypes(include=np.number)
+            .values[0]
+        )
 
-        rox_bkgd_vals = self.rox_bkgd[
-            (self.rox_bkgd["Assay ID"] == assay_id) &
-            (self.rox_bkgd["Sample ID"] == sample_id)
-        ].select_dtypes(include=np.number).values[0]
+        rox_bkgd_vals = (
+            self.rox_bkgd[
+                (self.rox_bkgd["Assay ID"] == assay_id)
+                & (self.rox_bkgd["Sample ID"] == sample_id)
+            ]
+            .select_dtypes(include=np.number)
+            .values[0]
+        )
 
         return rox_raw_vals - rox_bkgd_vals
-    
+
     # Subtracts ROX background from ROX raw
     def get_rox_raw(self, sample, assay):
         # Set sample and assay IDs
@@ -183,26 +214,34 @@ class Biomark:
         assay_id = "A" + str(assay).zfill(self.assay_pad)
 
         # After setting IDs, get the normalized fam_rox values and returns only numerics
-        rox_raw_vals = self.rox_raw[
-            (self.rox_raw["Assay ID"] == assay_id) &
-            (self.rox_raw["Sample ID"] == sample_id)
-        ].select_dtypes(include=np.number).values[0]
+        rox_raw_vals = (
+            self.rox_raw[
+                (self.rox_raw["Assay ID"] == assay_id)
+                & (self.rox_raw["Sample ID"] == sample_id)
+            ]
+            .select_dtypes(include=np.number)
+            .values[0]
+        )
 
         return rox_raw_vals
-    
+
     # Subtracts ROX background from ROX raw
     def get_rox_bkgd(self, sample, assay):
         # Set sample and assay IDs
         sample_id = "S" + str(sample).zfill(self.sample_pad)
         assay_id = "A" + str(assay).zfill(self.assay_pad)
 
-        rox_bkgd_vals = self.rox_bkgd[
-            (self.rox_bkgd["Assay ID"] == assay_id) &
-            (self.rox_bkgd["Sample ID"] == sample_id)
-        ].select_dtypes(include=np.number).values[0]
+        rox_bkgd_vals = (
+            self.rox_bkgd[
+                (self.rox_bkgd["Assay ID"] == assay_id)
+                & (self.rox_bkgd["Sample ID"] == sample_id)
+            ]
+            .select_dtypes(include=np.number)
+            .values[0]
+        )
 
         return rox_bkgd_vals
-    
+
     # Subtracts ROX background from ROX raw
     def get_fam(self, sample, assay):
         # Set sample and assay IDs
@@ -210,18 +249,26 @@ class Biomark:
         assay_id = "A" + str(assay).zfill(self.assay_pad)
 
         # After setting IDs, get the normalized fam_rox values and returns only numerics
-        fam_raw_vals = self.fam_raw[
-            (self.fam_raw["Assay ID"] == assay_id) &
-            (self.fam_raw["Sample ID"] == sample_id)
-        ].select_dtypes(include=np.number).values[0]
+        fam_raw_vals = (
+            self.fam_raw[
+                (self.fam_raw["Assay ID"] == assay_id)
+                & (self.fam_raw["Sample ID"] == sample_id)
+            ]
+            .select_dtypes(include=np.number)
+            .values[0]
+        )
 
-        fam_bkgd_vals = self.fam_bkgd[
-            (self.fam_bkgd["Assay ID"] == assay_id) &
-            (self.fam_bkgd["Sample ID"] == sample_id)
-        ].select_dtypes(include=np.number).values[0]
+        fam_bkgd_vals = (
+            self.fam_bkgd[
+                (self.fam_bkgd["Assay ID"] == assay_id)
+                & (self.fam_bkgd["Sample ID"] == sample_id)
+            ]
+            .select_dtypes(include=np.number)
+            .values[0]
+        )
 
         return fam_raw_vals - fam_bkgd_vals
-    
+
     # Subtracts ROX background from ROX raw
     def get_fam_raw(self, sample, assay):
         # Set sample and assay IDs
@@ -229,23 +276,31 @@ class Biomark:
         assay_id = "A" + str(assay).zfill(self.assay_pad)
 
         # After setting IDs, get the normalized fam_rox values and returns only numerics
-        fam_raw_vals = self.fam_raw[
-            (self.fam_raw["Assay ID"] == assay_id) &
-            (self.fam_raw["Sample ID"] == sample_id)
-        ].select_dtypes(include=np.number).values[0]
+        fam_raw_vals = (
+            self.fam_raw[
+                (self.fam_raw["Assay ID"] == assay_id)
+                & (self.fam_raw["Sample ID"] == sample_id)
+            ]
+            .select_dtypes(include=np.number)
+            .values[0]
+        )
 
         return fam_raw_vals
-    
+
     # Subtracts ROX background from ROX raw
     def get_fam_bkgd(self, sample, assay):
         # Set sample and assay IDs
         sample_id = "S" + str(sample).zfill(self.sample_pad)
         assay_id = "A" + str(assay).zfill(self.assay_pad)
 
-        fam_bkgd_vals = self.fam_bkgd[
-            (self.fam_bkgd["Assay ID"] == assay_id) &
-            (self.fam_bkgd["Sample ID"] == sample_id)
-        ].select_dtypes(include=np.number).values[0]
+        fam_bkgd_vals = (
+            self.fam_bkgd[
+                (self.fam_bkgd["Assay ID"] == assay_id)
+                & (self.fam_bkgd["Sample ID"] == sample_id)
+            ]
+            .select_dtypes(include=np.number)
+            .values[0]
+        )
 
         return fam_bkgd_vals
 
@@ -256,9 +311,13 @@ class Biomark:
         assay_id = "A" + str(assay).zfill(self.assay_pad)
 
         # After setting IDs, get the normalized fam_rox values and returns only numerics
-        norm_vals = self.fam_rox[
-            (self.fam_rox["Assay ID"] == assay_id) &
-            (self.fam_rox["Sample ID"] == sample_id)
-        ].select_dtypes(include=np.number).values[0]
+        norm_vals = (
+            self.fam_rox[
+                (self.fam_rox["Assay ID"] == assay_id)
+                & (self.fam_rox["Sample ID"] == sample_id)
+            ]
+            .select_dtypes(include=np.number)
+            .values[0]
+        )
 
         return norm_vals
