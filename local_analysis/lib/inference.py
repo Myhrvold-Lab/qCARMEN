@@ -1,161 +1,207 @@
-"""
-All functions related to actually calculating concentrations.
-"""
 import numpy as np
+from typing import Optional
 from tqdm import tqdm
 from joblib import Parallel, delayed
 
 from .model import y_model
-from .optimizer_lib import OptimizerWithEarlyStopping, run_minimize_with_stopping
-from .fitting_lib import multi_sample_constraints, multi_sample_error, single_sample_constraints, single_sample_error
-from .constants import NUM_SHARED_PARAMS
+from .optimizer_lib import (
+    run_least_squares,
+    generate_initial_params_lhs,
+)
+from .fitting_lib import (
+    compute_dna_tot,
+    multi_sample_residuals,
+    single_sample_residuals,
+)
+from .constants import NUM_SHARED_PARAMS, SHARED_PARAM_BOUNDS, DNA_BOUNDS
+
 
 def fit_shared_params(
     data: list,
-    num_iter: int = 3,
-    tol: float = 0.5,
-    threshold: float = 5,
+    num_iter: int = 16,
+    seed: Optional[int] = None,
+    lsq_method: str = "trf",
+    reg_lambda: float = 0.01,
 ) -> list:
-    """
-    Runs the initial shared parameter fitting process with the provided data.
-    """
     assert len(data) > 0
 
-    # Infer from data
     num_samples = len(data)
     num_genes = len(data[0])
-    
-    # Collect parameters and errors
+
+    num_dna_params = num_genes * num_samples
+    bounds = list(SHARED_PARAM_BOUNDS) + [DNA_BOUNDS] * num_dna_params
+
+    raw_resid_func = lambda p: multi_sample_residuals(
+        p, data, num_genes, num_samples,
+        n_jobs=-1, reg_lambda=reg_lambda,
+    )
+
+    if reg_lambda > 0:
+        print(f"Regularization: L2 lambda={reg_lambda}")
+
     param_res = []
-    
+    initial_params_set = generate_initial_params_lhs(bounds, num_iter, seed=seed)
+
     for iter_ind in range(num_iter):
-        print(f"Beginning shared fitting iteration {iter_ind + 1} of {num_iter}...")
-        # Shared params + DNA and DNA_excess for each gene in each sample
-        initial_params = np.concatenate([
-            np.random.rand(NUM_SHARED_PARAMS), 
-            np.ones(num_genes * num_samples), 
-            2 * np.ones(num_samples)
-        ])
-        multi_bounds = [(-15, 15)] * (NUM_SHARED_PARAMS - 1) + \
-            [(-np.inf, 1)] + \
-            [(-np.inf, np.inf)] * (num_genes * num_samples + num_samples)
+        try:
+            print(f"Beginning least_squares ({lsq_method}) iteration {iter_ind + 1} of {num_iter}...")
+            res_params, res_cost = run_least_squares(
+                raw_resid_func,
+                initial_params_set[iter_ind],
+                bounds,
+                method=lsq_method,
+            )
+            param_res.append((res_cost, res_params))
+        except Exception as e:
+            print(f"least_squares failed: {e}")
 
-        constraints = multi_sample_constraints(num_genes, num_samples)
-        custom_err_func = lambda p: multi_sample_error(p, data, num_genes, num_samples)
-
-        optimizer = OptimizerWithEarlyStopping(tol=tol, threshold=threshold)
-        res_params, res_err = run_minimize_with_stopping(
-            optimizer, 
-            initial_params, 
-            custom_err_func, 
-            constraints = constraints,
-            bounds = multi_bounds
-        )
-        param_res.append((res_err, res_params))
-        
-    min_param = min(param_res, key = lambda x: x[0])
-        
+    min_param = min(param_res, key=lambda x: x[0])
+    print(f"least_squares best cost: {min_param[0]:.6f}")
     return min_param[1]
+
 
 def fit_individual_sample(
     data: list,
     shared_params: list,
-    num_iter: int = 1,
-    tol: float = 0.5,
-    threshold: float = 5,
+    num_iter: int = 3,
+    initial_dna: Optional[np.ndarray] = None,
+    seed: Optional[int] = None,
+    lsq_method: str = "trf",
+    reg_lambda: float = 0.0,
 ) -> list:
     assert len(data) > 0
 
     print("Fitting individual sample...")
-    
-    # Infer from data
+
     num_genes = len(data)
     print("Number of genes:", num_genes)
-    
-    # Collect parameters and errors
-    param_res = []
-    
-    for _ in range(num_iter):
-        initial_params = np.concatenate([np.random.rand(num_genes), 2 * np.ones(1)])
-        # Generally unconstrained values for DNA and DNA_tot
-        bounds = [(-25, 25)] * len(initial_params)
-        
-        groups = {"G1": list(range(1, num_genes + 1))}
-        constraints = single_sample_constraints(groups)
-        custom_err_func = lambda p: single_sample_error(p, shared_params, data, num_genes)
 
-        optimizer = OptimizerWithEarlyStopping(tol=tol, threshold=threshold)
-        res_params, res_err = run_minimize_with_stopping(
-            optimizer, 
-            initial_params, 
-            custom_err_func, 
-            constraints = constraints,
-            bounds = bounds
-        )
-        
-        param_res.append((res_err, res_params))
-        
-    min_param = min(param_res, key = lambda x: x[0])
-    
+    bounds = [DNA_BOUNDS] * num_genes
+
+    resid_func = lambda p: single_sample_residuals(
+        p, shared_params, data, num_genes, reg_lambda=reg_lambda,
+    )
+
+    param_res = []
+
+    for iter_idx in range(num_iter):
+        try:
+            if iter_idx == 0 and initial_dna is not None:
+                init_params = np.array(initial_dna[:num_genes], dtype=float)
+            else:
+                init_set = generate_initial_params_lhs(bounds, 1, seed=(seed + iter_idx) if seed is not None else None)
+                init_params = init_set[0]
+
+            res_params, res_err = run_least_squares(
+                resid_func, init_params, bounds, method=lsq_method,
+            )
+
+            param_res.append((res_err, res_params))
+        except:
+            print("inf or nan generated in individual fitting.")
+
+    if not param_res:
+        print("WARNING: all restarts failed for sample, returning zeros")
+        return np.zeros(num_genes)
+
+    min_param = min(param_res, key=lambda x: x[0])
+
     return min_param[1]
 
+
 def fit_all_samples(
-    # Normalized data
     data: list,
-    # Result from fit_shared_params
     shared_params: list,
-    num_iter: int = 1,
-    tol: float = 0.5,
-    threshold: float = 5,
+    num_iter: int = 3,
+    stage1_dna: Optional[np.ndarray] = None,
+    rep_indices: Optional[list] = None,
+    seed: Optional[int] = None,
+    lsq_method: str = "trf",
+    reg_lambda: float = 0.0,
 ) -> list:
-    """
-    Manages parallelization of individual sample fitting.
-    Returns a list of all parameters for every sample / gene pair.
-    Shape of final list is: (num_samples, num_genes + 1).
-    Returns DNA concentrations + DNA_tot at the end of each sample list.
-    """
     assert len(data) > 0 and len(data[0]) > 0
 
-    print("Data length:", len(data))
-    
-    results = [r for r in 
+    num_samples = len(data)
+    num_genes = len(data[0])
+
+    print("Data length:", num_samples)
+
+    # Build warm-start DNA values for each sample
+    warm_starts = [None] * num_samples
+
+    if stage1_dna is not None and rep_indices is not None:
+        # Warm-start representatives directly from Stage 1 DNA values
+        for i, rep_idx in enumerate(rep_indices):
+            if rep_idx < num_samples:
+                start = i * num_genes
+                end = start + num_genes
+                if end <= len(stage1_dna):
+                    warm_starts[rep_idx] = stage1_dna[start:end]
+
+        # Warm-start non-representatives by scaling reference DNA by endpoint fluorescence ratio
+        ref_idx = None
+        ref_dna = None
+        for i, rep_idx in enumerate(rep_indices):
+            if warm_starts[rep_idx] is not None:
+                ref_idx = rep_idx
+                ref_dna = warm_starts[rep_idx]
+                break
+
+        if ref_dna is not None:
+            ref_end_vals = np.array([data[ref_idx][g][-1] for g in range(num_genes)])
+            ref_end_vals = np.clip(ref_end_vals, 1e-10, None)
+
+            for s in range(num_samples):
+                if warm_starts[s] is None:
+                    sample_end_vals = np.array([data[s][g][-1] for g in range(num_genes)])
+                    sample_end_vals = np.clip(sample_end_vals, 1e-10, None)
+                    ratio = np.log(sample_end_vals / ref_end_vals)
+                    warm_starts[s] = ref_dna + ratio
+
+    results = [r for r in
         tqdm(
             Parallel(return_as="generator", n_jobs=-1)(
-                delayed(fit_individual_sample)(sample_data, shared_params, tol=tol, threshold=threshold, num_iter=num_iter)
-                for sample_data in data
+                delayed(fit_individual_sample)(
+                    sample_data, shared_params,
+                    num_iter=num_iter,
+                    initial_dna=warm_starts[i],
+                    seed=seed,
+                    lsq_method=lsq_method,
+                    reg_lambda=reg_lambda,
+                )
+                for i, sample_data in enumerate(data)
             ),
-            total=len(data)
+            total=num_samples,
         )
     ]
-    
+
     return results
 
+
 def get_mses(
-    # Normalized data
     data: list,
     shared_params: list,
-    # Result from fit_all_samples()
     param_list: list,
 ) -> list:
-    """
-    Calculates MSE values for each sample-gene pair. Returns a list of lists.
-    Shape: (num_samples, num_genes)
-    """
     assert len(data) > 0 and len(data[0]) > 0
-    
-    # Infer from data
+
     num_samples = len(data)
     num_genes = len(data[0])
     num_timesteps = len(data[0][0])
-    
-    theta_list = [
-        [shared_params + [sample_params[-1], sample_params[gene]] 
-         for gene in range(len(data[0]))] for sample_params in param_list
-    ]
-    
+
+    theta_list = []
+    for sample_params in param_list:
+        dna_vals = np.array(sample_params[:num_genes])
+        dna_tot = compute_dna_tot(dna_vals)
+        sample_thetas = [
+            shared_params + [dna_tot, sample_params[gene]]
+            for gene in range(num_genes)
+        ]
+        theta_list.append(sample_thetas)
+
     flat_theta_list = [indiv_theta for sample_thetas in theta_list for indiv_theta in sample_thetas]
-    
-    results = [r for r in 
+
+    results = [r for r in
         tqdm(
             Parallel(return_as="generator", n_jobs=-1)(
                 delayed(lambda params: y_model(params, steps=num_timesteps))(theta)
@@ -164,24 +210,18 @@ def get_mses(
             total=len(flat_theta_list)
         )
     ]
-    
-    # Calculate MSE per theta
+
     flat_data = [indiv_data for sample_data in data for indiv_data in sample_data]
     flat_mses = [np.sum((flat_data[i] - results[i])**2) for i in range(len(results))]
-    
+
     return [[flat_mses[sample * num_genes + gene] for gene in range(num_genes)] for sample in range(num_samples)]
 
-def get_end_values(
-    data: list,
-) -> list:
-    """
-    Calculates end fluorescence values. Can use this to determine proximity
-    to limit of detection.
-    """
+
+def get_end_values(data: list) -> list:
+    """Calculates end fluorescence values for limit-of-detection assessment."""
     assert len(data) > 0 and len(data[0]) > 0
-    
-    # Infer from data
+
     num_samples = len(data)
     num_genes = len(data[0])
-    
+
     return [[data[sample][gene][-1] for gene in range(num_genes)] for sample in range(num_samples)]
